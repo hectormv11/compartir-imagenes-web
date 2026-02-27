@@ -15,10 +15,10 @@ const status = el("status");
 let token = localStorage.getItem("token") || "";
 let user = JSON.parse(localStorage.getItem("user") || "null");
 
-// Selección actual de destinatario
+// Destinatario seleccionado
 let targetUsername = "";
 
-// Para evitar fugas de memoria con URLs blob
+// Para no fugarnos de memoria con blob URLs
 let objectUrls = [];
 function rememberObjectUrl(url) { objectUrls.push(url); }
 function clearObjectUrls() {
@@ -61,21 +61,34 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// -------- Miniaturas protegidas (img con fetch+blob) --------
+// --------------------
+// Miniaturas protegidas (fetch + blob)
+// --------------------
 async function setImgWithAuth(imgEl, fileUrl) {
-  if (imgEl.dataset.objUrl) { try { URL.revokeObjectURL(imgEl.dataset.objUrl); } catch {} }
+  // cache busting simple para evitar cosas raras
+  const u = new URL(fileUrl);
+  u.searchParams.set("_", String(Date.now()));
 
-  const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
   const blob = await res.blob();
   const objUrl = URL.createObjectURL(blob);
+
+  // libera la anterior si existía
+  if (imgEl.dataset.objUrl) { try { URL.revokeObjectURL(imgEl.dataset.objUrl); } catch {} }
+
   imgEl.src = objUrl;
   imgEl.dataset.objUrl = objUrl;
   rememberObjectUrl(objUrl);
 }
 
-// -------- UI helpers --------
+// --------------------
+// UI helpers
+// --------------------
 function initials(name) {
   const s = (name || "").trim();
   if (!s) return "?";
@@ -88,8 +101,8 @@ function initials(name) {
 function setTarget(u) {
   targetUsername = u || "";
   el("targetLabel").textContent = targetUsername || "—";
+  el("targetLabel2").textContent = targetUsername || "—";
   updateSendEnabled();
-  // marcar active visual en lista
   document.querySelectorAll(".contact").forEach(node => {
     node.classList.toggle("active", node.dataset.username === targetUsername);
   });
@@ -101,7 +114,14 @@ function updateSendEnabled() {
   el("sendBtn").disabled = !(hasTarget && hasFile);
 }
 
-// -------- Views --------
+function toast(text) {
+  setStatus(text);
+  setTimeout(() => setStatus(""), 1800);
+}
+
+// --------------------
+// Views
+// --------------------
 function showAuth() {
   show("authView"); hide("forcePassView"); hide("appView");
 }
@@ -111,8 +131,6 @@ function showForcePass() {
 function showApp() {
   hide("authView"); hide("forcePassView"); show("appView");
   el("profileUser").textContent = user?.username || "";
-
-  // Auto-cargar contactos al entrar a la app
   loadContacts().catch(() => {});
 }
 
@@ -126,19 +144,15 @@ function activateTab(tabId, viewId) {
   if (viewId === "viewSend") loadContacts().catch(() => {});
 }
 
-function toast(text) {
-  setStatus(text);
-  setTimeout(() => setStatus(""), 1800);
-}
-
-// -------- AUTH --------
+// --------------------
+// AUTH
+// --------------------
 el("loginBtn").addEventListener("click", async () => {
   authMsg.textContent = "";
   try {
     const username = el("loginUser").value.trim();
     const password = el("loginPass").value;
     const r = await api("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
-
     setSession(r.token, r.user);
     if (r.user.must_change_password) showForcePass();
     else showApp();
@@ -178,7 +192,9 @@ logoutBtn.addEventListener("click", () => {
   showAuth();
 });
 
-// -------- CONTACTS (auto) --------
+// --------------------
+// CONTACTS
+// --------------------
 el("refreshContactsBtn").addEventListener("click", () => loadContacts());
 
 async function loadContacts() {
@@ -186,7 +202,7 @@ async function loadContacts() {
   box.innerHTML = `<div style="padding:12px" class="muted">Cargando…</div>`;
 
   try {
-    const cs = await api("/contacts"); // [{username, last_interaction_at}]
+    const cs = await api("/contacts");
     if (!cs.length) {
       box.innerHTML = `<div style="padding:12px" class="muted">Aún no tienes contactos. Usa el buscador.</div>`;
       return;
@@ -208,23 +224,23 @@ async function loadContacts() {
       box.appendChild(node);
     }
 
-    // si ya había target, re-aplica highlight
     if (targetUsername) setTarget(targetUsername);
   } catch (e) {
     box.innerHTML = `<div style="padding:12px" class="muted">Error: ${e.message}</div>`;
   }
 }
 
-// -------- SEARCH --------
+// --------------------
+// SEARCH
+// --------------------
 el("searchBtn").addEventListener("click", async () => {
   const container = el("searchResults");
   container.innerHTML = "";
   const q = el("searchQ").value.trim();
-
   if (!q) return;
 
   try {
-    const rs = await api(`/users/search?q=${encodeURIComponent(q)}`); // [{id, username}]
+    const rs = await api(`/users/search?q=${encodeURIComponent(q)}`);
     if (!rs.length) {
       container.innerHTML = `<div class="muted">Sin resultados.</div>`;
       return;
@@ -254,13 +270,36 @@ el("searchBtn").addEventListener("click", async () => {
   }
 });
 
-// -------- DROPZONE --------
+// --------------------
+// DROPZONE + PREVIEW (local, no auth needed)
+// --------------------
 const dropzone = el("dropzone");
 const fileInput = el("file");
 const dzFile = el("dzFile");
+const previewWrap = el("previewWrap");
+const sendPreview = el("sendPreview");
+const clearFileBtn = el("clearFileBtn");
+
+let localPreviewUrl = "";
 
 function setFileLabel(file) {
   dzFile.textContent = file ? `Seleccionado: ${file.name}` : "";
+}
+
+function setLocalPreview(file) {
+  // limpiar anterior
+  if (localPreviewUrl) { try { URL.revokeObjectURL(localPreviewUrl); } catch {} }
+  localPreviewUrl = "";
+
+  if (!file) {
+    hide("previewWrap");
+    sendPreview.removeAttribute("src");
+    return;
+  }
+
+  localPreviewUrl = URL.createObjectURL(file);
+  sendPreview.src = localPreviewUrl;
+  show("previewWrap");
 }
 
 dropzone.addEventListener("click", () => fileInput.click());
@@ -275,16 +314,28 @@ dropzone.addEventListener("drop", (e) => {
   if (f) {
     fileInput.files = e.dataTransfer.files;
     setFileLabel(f);
+    setLocalPreview(f);
     updateSendEnabled();
   }
 });
 
 fileInput.addEventListener("change", () => {
-  setFileLabel(fileInput.files?.[0]);
+  const f = fileInput.files?.[0];
+  setFileLabel(f);
+  setLocalPreview(f);
   updateSendEnabled();
 });
 
-// -------- SEND IMAGE --------
+clearFileBtn.addEventListener("click", () => {
+  fileInput.value = "";
+  setFileLabel(null);
+  setLocalPreview(null);
+  updateSendEnabled();
+});
+
+// --------------------
+// SEND IMAGE
+// --------------------
 el("sendBtn").addEventListener("click", async () => {
   el("sendMsg").textContent = "";
   el("shareMsg").textContent = "";
@@ -305,9 +356,10 @@ el("sendBtn").addEventListener("click", async () => {
     el("sendMsg").textContent = `✅ Enviado a ${r.receiver}. Expira: ${new Date(r.expiresAt).toLocaleString()}`;
     if (r.shareLink) el("shareMsg").textContent = `Link corto (opcional): ${r.shareLink}`;
 
-    // Limpia file + recarga contactos (porque ahora es reciente)
+    // Limpia selección
     fileInput.value = "";
     setFileLabel(null);
+    setLocalPreview(null);
     updateSendEnabled();
 
     await loadContacts();
@@ -316,7 +368,9 @@ el("sendBtn").addEventListener("click", async () => {
   }
 });
 
-// -------- SENT --------
+// --------------------
+// SENT
+// --------------------
 el("reloadSentBtn").addEventListener("click", loadSent);
 
 async function loadSent() {
@@ -331,10 +385,12 @@ async function loadSent() {
 
     for (const m of items) {
       const fileUrl = `${API_BASE}${m.fileUrl}`;
+
       const div = document.createElement("div");
       div.className = "thumb";
       div.innerHTML = `
-        <img alt="" />
+        <div class="imgFallback">Cargando miniatura…</div>
+        <img alt="" style="display:none" />
         <div class="meta">
           <div><strong>Para:</strong> ${m.to_username}</div>
           <div class="small">${m.original_name || ""}</div>
@@ -346,12 +402,21 @@ async function loadSent() {
         </div>
       `;
 
+      const fallback = div.querySelector(".imgFallback");
       const img = div.querySelector("img");
-      setImgWithAuth(img, fileUrl).catch(() => { img.style.display = "none"; });
+
+      setImgWithAuth(img, fileUrl)
+        .then(() => {
+          fallback.remove();
+          img.style.display = "block";
+        })
+        .catch(() => {
+          fallback.textContent = "No se pudo cargar miniatura";
+        });
 
       div.querySelector("button[data-open]").addEventListener("click", async () => {
         try {
-          const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }});
+          const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
@@ -372,7 +437,9 @@ async function loadSent() {
   }
 }
 
-// -------- RECEIVED --------
+// --------------------
+// RECEIVED
+// --------------------
 el("reloadReceivedBtn").addEventListener("click", loadReceived);
 el("downloadSelectedBtn").addEventListener("click", downloadSelected);
 
@@ -400,10 +467,12 @@ async function loadReceived() {
 
       for (const item of grouped[from]) {
         const fileUrl = `${API_BASE}${item.fileUrl}`;
+
         const div = document.createElement("div");
         div.className = "thumb";
         div.innerHTML = `
-          <img alt="" />
+          <div class="imgFallback">Cargando miniatura…</div>
+          <img alt="" style="display:none" />
           <div class="meta">
             <label class="row" style="gap:8px">
               <input type="checkbox" data-url="${fileUrl}" data-name="${item.original_name || "foto"}" />
@@ -418,8 +487,17 @@ async function loadReceived() {
           </div>
         `;
 
+        const fallback = div.querySelector(".imgFallback");
         const img = div.querySelector("img");
-        setImgWithAuth(img, fileUrl).catch(() => { img.style.display = "none"; });
+
+        setImgWithAuth(img, fileUrl)
+          .then(() => {
+            fallback.remove();
+            img.style.display = "block";
+          })
+          .catch(() => {
+            fallback.textContent = "No se pudo cargar miniatura";
+          });
 
         div.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
           const u = e.target.getAttribute("data-url");
@@ -430,7 +508,7 @@ async function loadReceived() {
 
         div.querySelector("button[data-open]").addEventListener("click", async () => {
           try {
-            const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }});
+            const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
@@ -455,7 +533,7 @@ async function loadReceived() {
 }
 
 async function downloadOne(fileUrl, filename) {
-  const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }});
+  const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const objUrl = URL.createObjectURL(blob);
@@ -473,16 +551,16 @@ async function downloadSelected() {
   if (selected.size === 0) return alert("No has seleccionado nada.");
   setStatus(`Descargando ${selected.size}…`);
   try {
-    for (const [u, n] of selected.entries()) {
-      await downloadOne(u, n);
-    }
+    for (const [u, n] of selected.entries()) await downloadOne(u, n);
     toast("✅ Descargas lanzadas");
   } catch (e) {
     setStatus(`❌ ${e.message}`);
   }
 }
 
-// -------- PROFILE --------
+// --------------------
+// PROFILE
+// --------------------
 el("profileChangePassBtn").addEventListener("click", async () => {
   el("profileMsg").textContent = "";
   try {

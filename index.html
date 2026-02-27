@@ -137,6 +137,32 @@
     .dzFile{font-size:12px;color:#111}
     .hidden{display:none}
 
+    /* Preview */
+    .previewWrap{
+      margin-top:12px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      overflow:hidden;
+      background:var(--soft);
+    }
+    .previewWrap img{
+      width:100%;
+      height:260px;
+      object-fit:cover;
+      display:block;
+      background:var(--soft);
+    }
+    .previewMeta{
+      padding:10px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      border-top:1px solid var(--border);
+      background:#fff;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
     /* Thumbs */
     .thumb{
       border:1px solid var(--border);
@@ -150,6 +176,18 @@
     .meta .small{font-size:12px;color:var(--muted)}
     .meta .actions{display:flex;gap:8px;flex-wrap:wrap}
     .note{font-size:12px;color:var(--muted)}
+
+    .imgFallback{
+      width:100%;
+      height:170px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:var(--soft);
+      color:var(--muted);
+      font-size:12px;
+      border-bottom:1px solid var(--border);
+    }
   </style>
 </head>
 
@@ -262,8 +300,17 @@
           </div>
           <input id="file" class="hidden" type="file" accept="image/*" />
 
+          <!-- ✅ Preview -->
+          <div id="previewWrap" class="previewWrap hidden">
+            <img id="sendPreview" alt="Vista previa" />
+            <div class="previewMeta">
+              <div class="muted">Destino: <strong id="targetLabel">—</strong></div>
+              <button id="clearFileBtn" class="btn secondary">Quitar imagen</button>
+            </div>
+          </div>
+
           <div class="row" style="margin-top:12px;justify-content:space-between">
-            <div class="muted">Destino: <strong id="targetLabel">—</strong></div>
+            <div class="muted">Destino: <strong id="targetLabel2">—</strong></div>
             <button id="sendBtn" class="btn" disabled>Enviar</button>
           </div>
 
