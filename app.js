@@ -147,7 +147,19 @@ el("searchBtn").addEventListener("click", async () => {
 
 el("useSearchBtn").addEventListener("click", () => {
   const u = searchSelect.value;
-  if (u) contactSelect.value = u;
+  if (!u) return;
+
+  // Si no existe como option en contactos, la añadimos
+  const exists = Array.from(contactSelect.options).some(opt => opt.value === u);
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = u;
+    opt.textContent = u;
+    contactSelect.appendChild(opt);
+  }
+
+  contactSelect.value = u;
+  setStatus(`✅ Contacto seleccionado: ${u}`);
 });
 
 // Send image
