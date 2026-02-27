@@ -5,48 +5,158 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Compartir Imágenes</title>
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 0; background:#0b0f19; color:#e8eefc; }
-    header { padding: 16px 20px; background:#101936; position: sticky; top: 0; }
-    main { max-width: 980px; margin: 0 auto; padding: 20px; }
-    .card { background:#111a33; border:1px solid #1c2a55; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
-    input, button { padding: 10px 12px; border-radius: 10px; border:1px solid #2b3b74; background:#0e1630; color:#e8eefc; }
-    button { cursor: pointer; background:#2b56ff; border-color:#2b56ff; }
-    button.secondary { background: transparent; border-color:#2b3b74; }
-    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; }
-    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-    .thumb { background:#0e1630; border:1px solid #1c2a55; border-radius: 14px; overflow:hidden; }
-    .thumb img { width:100%; height: 180px; object-fit: cover; display:block; }
-    .thumb .meta { padding: 10px; display:flex; gap: 8px; flex-direction: column; }
-    .muted { opacity: 0.8; font-size: 12px; }
-    a { color:#9fb7ff; }
+    body{font-family:system-ui,Arial;margin:0;background:#0b0f19;color:#e8eefc}
+    header{padding:14px 18px;background:#101936;position:sticky;top:0;border-bottom:1px solid #1c2a55}
+    main{max-width:1050px;margin:0 auto;padding:18px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .card{background:#111a33;border:1px solid #1c2a55;border-radius:14px;padding:14px;margin:14px 0}
+    input,button,select{padding:10px 12px;border-radius:10px;border:1px solid #2b3b74;background:#0e1630;color:#e8eefc}
+    button{cursor:pointer;background:#2b56ff;border-color:#2b56ff}
+    button.secondary{background:transparent;border-color:#2b3b74}
+    button.danger{background:#ff2b2b;border-color:#ff2b2b}
+    a{color:#9fb7ff}
+    .muted{opacity:.8;font-size:12px}
+    .tabs button{background:transparent;border-color:#2b3b74}
+    .tabs button.active{background:#2b56ff;border-color:#2b56ff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+    .thumb{background:#0e1630;border:1px solid #1c2a55;border-radius:14px;overflow:hidden}
+    .thumb img{width:100%;height:170px;object-fit:cover;display:block}
+    .thumb .meta{padding:10px;display:flex;gap:8px;flex-direction:column}
+    .sectionTitle{margin:0 0 8px 0}
+    .hidden{display:none}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid #2b3b74;border-radius:999px;font-size:12px;opacity:.9}
   </style>
 </head>
 <body>
-  <header>
-    <div class="row" style="justify-content: space-between;">
-      <div><strong>📷 Compartir Imágenes</strong> <span class="muted">original</span></div>
-      <div class="muted" id="apiLabel"></div>
+<header>
+  <div class="row" style="justify-content:space-between;">
+    <div><strong>📷 Compartir Imágenes</strong> <span class="pill">3h</span></div>
+    <div class="row">
+      <span id="userLabel" class="muted"></span>
+      <button id="logoutBtn" class="secondary hidden">Salir</button>
     </div>
-  </header>
+  </div>
+</header>
 
-  <main>
+<main>
+  <!-- Auth -->
+  <div id="authView" class="card">
+    <h3 style="margin-top:0">Entrar</h3>
+    <div class="row">
+      <input id="loginUser" placeholder="Usuario" autocomplete="username" />
+      <input id="loginPass" placeholder="Contraseña" type="password" autocomplete="current-password" />
+      <button id="loginBtn">Iniciar sesión</button>
+    </div>
+    <p class="muted" id="authMsg"></p>
+
+    <hr style="border:0;border-top:1px solid #1c2a55;margin:14px 0"/>
+
+    <h3 style="margin-top:0">Registrarse</h3>
+    <div class="row">
+      <input id="regUser" placeholder="Nuevo usuario (único)" autocomplete="username" />
+      <button id="regBtn">Crear cuenta</button>
+    </div>
+    <p class="muted" id="regMsg"></p>
+  </div>
+
+  <!-- Force change password -->
+  <div id="forcePassView" class="card hidden">
+    <h3 style="margin-top:0">Cambia tu contraseña</h3>
+    <p class="muted">Es obligatorio la primera vez que entras.</p>
+    <div class="row">
+      <input id="newPass" type="password" placeholder="Nueva contraseña (mín. 8)" />
+      <button id="changePassBtn">Guardar</button>
+    </div>
+    <p class="muted" id="passMsg"></p>
+  </div>
+
+  <!-- App -->
+  <div id="appView" class="hidden">
     <div class="card">
-      <h3 style="margin-top:0;">Subir imagen</h3>
+      <div class="row tabs">
+        <button id="tabSend" class="active">1) Subir</button>
+        <button id="tabSent">2) Enviadas</button>
+        <button id="tabReceived">3) Recibidas</button>
+        <button id="tabProfile">4) Perfil</button>
+      </div>
+      <p class="muted" id="status"></p>
+    </div>
+
+    <!-- 1 Send -->
+    <div id="viewSend" class="card">
+      <h3 style="margin-top:0">Enviar imagen</h3>
+
+      <div class="card" style="margin:10px 0">
+        <h4 style="margin:0 0 10px 0">Contactos</h4>
+        <div class="row">
+          <button id="loadContactsBtn" class="secondary">Cargar contactos</button>
+          <select id="contactSelect">
+            <option value="">(elige un contacto)</option>
+          </select>
+        </div>
+        <p class="muted">Se rellena con usuarios a los que ya enviaste antes.</p>
+      </div>
+
+      <div class="card" style="margin:10px 0">
+        <h4 style="margin:0 0 10px 0">Buscar usuario</h4>
+        <div class="row">
+          <input id="searchQ" placeholder="Buscar por nombre de usuario" />
+          <button id="searchBtn" class="secondary">Buscar</button>
+          <select id="searchSelect">
+            <option value="">(resultados)</option>
+          </select>
+          <button id="useSearchBtn" class="secondary">Usar seleccionado</button>
+        </div>
+      </div>
+
       <div class="row">
         <input id="file" type="file" accept="image/*" />
-        <button id="uploadBtn">Subir</button>
-        <button id="refreshBtn" class="secondary">Refrescar lista</button>
+        <button id="sendBtn">Enviar</button>
       </div>
-      <p id="status" class="muted"></p>
-      <p class="muted">⚠️ MVP: esto es para pruebas. Luego haremos almacenamiento “de verdad” para que no se pierdan archivos.</p>
+
+      <p class="muted" id="sendMsg"></p>
+      <p class="muted" id="shareMsg"></p>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top:0;">Archivos (últimos)</h3>
-      <div id="gallery" class="grid"></div>
+    <!-- 2 Sent -->
+    <div id="viewSent" class="card hidden">
+      <h3 style="margin-top:0">Enviadas (no expiradas)</h3>
+      <button id="reloadSentBtn" class="secondary">Refrescar</button>
+      <div id="sentGrid" class="grid" style="margin-top:12px"></div>
     </div>
-  </main>
 
-  <script src="./app.js"></script>
+    <!-- 3 Received -->
+    <div id="viewReceived" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">Recibidas</h3>
+        <div class="row">
+          <button id="reloadReceivedBtn" class="secondary">Refrescar</button>
+          <button id="downloadSelectedBtn">Descargar seleccionadas</button>
+        </div>
+      </div>
+      <p class="muted">MVP: descarga varias abriendo varias descargas. Luego lo mejoramos a ZIP.</p>
+      <div id="receivedArea" style="margin-top:12px"></div>
+    </div>
+
+    <!-- 4 Profile -->
+    <div id="viewProfile" class="card hidden">
+      <h3 style="margin-top:0">Perfil</h3>
+      <p><strong>Usuario:</strong> <span id="profileUser"></span></p>
+      <h4>Cambiar contraseña</h4>
+      <div class="row">
+        <input id="profileNewPass" type="password" placeholder="Nueva contraseña (mín. 8)" />
+        <button id="profileChangePassBtn">Cambiar</button>
+      </div>
+      <p class="muted" id="profileMsg"></p>
+
+      <hr style="border:0;border-top:1px solid #1c2a55;margin:14px 0"/>
+
+      <p class="muted">Foto de perfil: lo añadimos en el siguiente paso (requiere storage permanente).</p>
+    </div>
+  </div>
+
+</main>
+
+<script src="./app.js"></script>
 </body>
 </html>
