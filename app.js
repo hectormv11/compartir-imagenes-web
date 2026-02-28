@@ -61,11 +61,8 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// --------------------
-// Miniaturas protegidas (fetch + blob)
-// --------------------
+// Miniaturas protegidas
 async function setImgWithAuth(imgEl, fileUrl) {
-  // cache busting simple para evitar cosas raras
   const u = new URL(fileUrl);
   u.searchParams.set("_", String(Date.now()));
 
@@ -78,7 +75,6 @@ async function setImgWithAuth(imgEl, fileUrl) {
   const blob = await res.blob();
   const objUrl = URL.createObjectURL(blob);
 
-  // libera la anterior si existía
   if (imgEl.dataset.objUrl) { try { URL.revokeObjectURL(imgEl.dataset.objUrl); } catch {} }
 
   imgEl.src = objUrl;
@@ -86,9 +82,7 @@ async function setImgWithAuth(imgEl, fileUrl) {
   rememberObjectUrl(objUrl);
 }
 
-// --------------------
 // UI helpers
-// --------------------
 function initials(name) {
   const s = (name || "").trim();
   if (!s) return "?";
@@ -119,9 +113,7 @@ function toast(text) {
   setTimeout(() => setStatus(""), 1800);
 }
 
-// --------------------
 // Views
-// --------------------
 function showAuth() {
   show("authView"); hide("forcePassView"); hide("appView");
 }
@@ -140,13 +132,10 @@ function activateTab(tabId, viewId) {
   ["viewSend","viewSent","viewReceived","viewProfile"].forEach(v => hide(v));
   el(tabId).classList.add("active");
   show(viewId);
-
   if (viewId === "viewSend") loadContacts().catch(() => {});
 }
 
-// --------------------
 // AUTH
-// --------------------
 el("loginBtn").addEventListener("click", async () => {
   authMsg.textContent = "";
   try {
@@ -193,8 +182,51 @@ logoutBtn.addEventListener("click", () => {
 });
 
 // --------------------
-// CONTACTS
+// ✅ Modal confirmación eliminar
 // --------------------
+const confirmOverlay = el("confirmOverlay");
+const confirmText = el("confirmText");
+const confirmCancel = el("confirmCancel");
+const confirmOk = el("confirmOk");
+
+let pendingDelete = ""; // username
+
+function openConfirmDelete(username) {
+  pendingDelete = username;
+  confirmText.textContent = `¿Seguro que quieres eliminar a “${username}” de tus contactos?`;
+  confirmOverlay.classList.remove("hidden");
+  confirmOverlay.setAttribute("aria-hidden", "false");
+}
+
+function closeConfirm() {
+  pendingDelete = "";
+  confirmOverlay.classList.add("hidden");
+  confirmOverlay.setAttribute("aria-hidden", "true");
+}
+
+confirmCancel.addEventListener("click", closeConfirm);
+confirmOverlay.addEventListener("click", (e) => {
+  if (e.target === confirmOverlay) closeConfirm();
+});
+
+confirmOk.addEventListener("click", async () => {
+  if (!pendingDelete) return closeConfirm();
+  try {
+    await api(`/contacts/${encodeURIComponent(pendingDelete)}`, { method: "DELETE" });
+
+    // Si borras el que estaba seleccionado como target, lo deseleccionamos
+    if (targetUsername === pendingDelete) setTarget("");
+
+    closeConfirm();
+    toast("✅ Contacto eliminado");
+    await loadContacts();
+  } catch (e) {
+    closeConfirm();
+    toast(`❌ ${e.message}`);
+  }
+});
+
+// CONTACTS
 el("refreshContactsBtn").addEventListener("click", () => loadContacts());
 
 async function loadContacts() {
@@ -213,14 +245,28 @@ async function loadContacts() {
       const node = document.createElement("div");
       node.className = "contact";
       node.dataset.username = c.username;
+
       node.innerHTML = `
         <div class="avatar">${initials(c.username)}</div>
         <div style="min-width:0">
           <div class="contactName">${c.username}</div>
           <div class="contactMeta">Reciente</div>
         </div>
+
+        <div class="contactRight">
+          <button class="iconBtn" title="Eliminar contacto" aria-label="Eliminar contacto">🗑️</button>
+        </div>
       `;
+
+      // click normal: seleccionar destino
       node.addEventListener("click", () => setTarget(c.username));
+
+      // click en papelera: NO seleccionar, solo borrar
+      node.querySelector(".iconBtn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        openConfirmDelete(c.username);
+      });
+
       box.appendChild(node);
     }
 
@@ -230,9 +276,7 @@ async function loadContacts() {
   }
 }
 
-// --------------------
 // SEARCH
-// --------------------
 el("searchBtn").addEventListener("click", async () => {
   const container = el("searchResults");
   container.innerHTML = "";
@@ -270,9 +314,7 @@ el("searchBtn").addEventListener("click", async () => {
   }
 });
 
-// --------------------
-// DROPZONE + PREVIEW (local, no auth needed)
-// --------------------
+// DROPZONE + PREVIEW
 const dropzone = el("dropzone");
 const fileInput = el("file");
 const dzFile = el("dzFile");
@@ -285,9 +327,7 @@ let localPreviewUrl = "";
 function setFileLabel(file) {
   dzFile.textContent = file ? `Seleccionado: ${file.name}` : "";
 }
-
 function setLocalPreview(file) {
-  // limpiar anterior
   if (localPreviewUrl) { try { URL.revokeObjectURL(localPreviewUrl); } catch {} }
   localPreviewUrl = "";
 
@@ -296,7 +336,6 @@ function setLocalPreview(file) {
     sendPreview.removeAttribute("src");
     return;
   }
-
   localPreviewUrl = URL.createObjectURL(file);
   sendPreview.src = localPreviewUrl;
   show("previewWrap");
@@ -333,9 +372,7 @@ clearFileBtn.addEventListener("click", () => {
   updateSendEnabled();
 });
 
-// --------------------
 // SEND IMAGE
-// --------------------
 el("sendBtn").addEventListener("click", async () => {
   el("sendMsg").textContent = "";
   el("shareMsg").textContent = "";
@@ -356,21 +393,18 @@ el("sendBtn").addEventListener("click", async () => {
     el("sendMsg").textContent = `✅ Enviado a ${r.receiver}. Expira: ${new Date(r.expiresAt).toLocaleString()}`;
     if (r.shareLink) el("shareMsg").textContent = `Link corto (opcional): ${r.shareLink}`;
 
-    // Limpia selección
     fileInput.value = "";
     setFileLabel(null);
     setLocalPreview(null);
     updateSendEnabled();
 
-    await loadContacts();
+    await loadContacts(); // refresca recents
   } catch (e) {
     setStatus(`❌ ${e.message}`);
   }
 });
 
-// --------------------
 // SENT
-// --------------------
 el("reloadSentBtn").addEventListener("click", loadSent);
 
 async function loadSent() {
@@ -406,13 +440,8 @@ async function loadSent() {
       const img = div.querySelector("img");
 
       setImgWithAuth(img, fileUrl)
-        .then(() => {
-          fallback.remove();
-          img.style.display = "block";
-        })
-        .catch(() => {
-          fallback.textContent = "No se pudo cargar miniatura";
-        });
+        .then(() => { fallback.remove(); img.style.display = "block"; })
+        .catch(() => { fallback.textContent = "No se pudo cargar miniatura"; });
 
       div.querySelector("button[data-open]").addEventListener("click", async () => {
         try {
@@ -437,9 +466,7 @@ async function loadSent() {
   }
 }
 
-// --------------------
 // RECEIVED
-// --------------------
 el("reloadReceivedBtn").addEventListener("click", loadReceived);
 el("downloadSelectedBtn").addEventListener("click", downloadSelected);
 
@@ -491,13 +518,8 @@ async function loadReceived() {
         const img = div.querySelector("img");
 
         setImgWithAuth(img, fileUrl)
-          .then(() => {
-            fallback.remove();
-            img.style.display = "block";
-          })
-          .catch(() => {
-            fallback.textContent = "No se pudo cargar miniatura";
-          });
+          .then(() => { fallback.remove(); img.style.display = "block"; })
+          .catch(() => { fallback.textContent = "No se pudo cargar miniatura"; });
 
         div.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
           const u = e.target.getAttribute("data-url");
@@ -558,9 +580,7 @@ async function downloadSelected() {
   }
 }
 
-// --------------------
 // PROFILE
-// --------------------
 el("profileChangePassBtn").addEventListener("click", async () => {
   el("profileMsg").textContent = "";
   try {

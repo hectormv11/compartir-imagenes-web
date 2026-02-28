@@ -86,7 +86,16 @@
       background:var(--soft);
       display:flex;align-items:center;justify-content:space-between;gap:10px
     }
-    .listBody{max-height:320px;overflow:auto}
+
+    /* ✅ 10 visibles aprox: ajusta la altura del scroll SOLO aquí */
+    .listBody{
+      max-height: 560px;   /* ~10 filas */
+      overflow:auto;
+    }
+    @media (max-width: 860px){
+      .listBody{ max-height: 420px; }
+    }
+
     .contact{
       display:flex;align-items:center;gap:10px;
       padding:10px 12px;
@@ -108,6 +117,20 @@
     .contactName{font-weight:600}
     .contactMeta{font-size:12px;color:var(--muted)}
     .contact.active .contactMeta{color:rgba(255,255,255,.8)}
+
+    .contactRight{
+      margin-left:auto;
+      display:flex; align-items:center; gap:8px;
+    }
+    .iconBtn{
+      width:34px;height:34px;border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .iconBtn:hover{background:var(--soft)}
+    .contact.active .iconBtn{background:transparent;border-color:rgba(255,255,255,.35);color:#fff}
 
     /* Search results list */
     .miniList{display:flex;flex-direction:column;gap:8px}
@@ -188,6 +211,26 @@
       font-size:12px;
       border-bottom:1px solid var(--border);
     }
+
+    /* ✅ Modal */
+    .modalOverlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.35);
+      display:flex; align-items:center; justify-content:center;
+      padding:18px;
+      z-index:100;
+    }
+    .modal{
+      width:min(460px, 100%);
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+      padding:16px;
+    }
+    .modalTitle{font-weight:800;margin:0 0 6px 0}
+    .modalText{margin:0 0 14px 0;color:var(--muted);font-size:14px;line-height:1.35}
+    .modalActions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
   </style>
 </head>
 
@@ -300,7 +343,6 @@
           </div>
           <input id="file" class="hidden" type="file" accept="image/*" />
 
-          <!-- ✅ Preview -->
           <div id="previewWrap" class="previewWrap hidden">
             <img id="sendPreview" alt="Vista previa" />
             <div class="previewMeta">
@@ -360,6 +402,18 @@
     </div>
   </div>
 </main>
+
+<!-- ✅ Modal confirmación -->
+<div id="confirmOverlay" class="modalOverlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 class="modalTitle" id="confirmTitle">Eliminar contacto</h3>
+    <p class="modalText" id="confirmText"></p>
+    <div class="modalActions">
+      <button id="confirmCancel" class="btn secondary">Cancelar</button>
+      <button id="confirmOk" class="btn">Eliminar</button>
+    </div>
+  </div>
+</div>
 
 <script src="./app.js"></script>
 </body>
