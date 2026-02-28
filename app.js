@@ -204,6 +204,13 @@ function closeConfirm() {
   confirmOverlay.setAttribute("aria-hidden", "true");
 }
 
+if (confirmOverlay) {
+  confirmOverlay.classList.add("hidden");
+  confirmOverlay.setAttribute("aria-hidden", "true");
+}
+
+closeConfirm();
+
 confirmCancel.addEventListener("click", closeConfirm);
 confirmOverlay.addEventListener("click", (e) => {
   if (e.target === confirmOverlay) closeConfirm();
@@ -597,6 +604,10 @@ el("tabSend").addEventListener("click", () => activateTab("tabSend","viewSend"))
 el("tabSent").addEventListener("click", () => { activateTab("tabSent","viewSent"); loadSent(); });
 el("tabReceived").addEventListener("click", () => { activateTab("tabReceived","viewReceived"); loadReceived(); });
 el("tabProfile").addEventListener("click", () => activateTab("tabProfile","viewProfile"));
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeConfirm();
+});
 
 // Init
 (function init() {
