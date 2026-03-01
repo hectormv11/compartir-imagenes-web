@@ -224,7 +224,6 @@
         /* ✅ 10 visibles aprox: ajusta la altura del scroll SOLO aquí */
         .listBody {
             max-height: 560px;
-            /* ~10 filas */
             overflow: auto;
         }
 
@@ -536,43 +535,6 @@
             color: #111;
         }
 
-        /* ✅ Profile button in header (duplicado en tu CSS; lo dejo tal cual) */
-        .profileBtn {
-            border: 1px solid var(--border);
-            background: #fff;
-            border-radius: 999px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform .05s ease, background .15s ease;
-            padding: 0;
-        }
-
-        .profileBtn:hover {
-            background: var(--soft);
-        }
-
-        .profileBtn:active {
-            transform: scale(.98);
-        }
-
-        .profileAvatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 12px;
-            border: 1px solid var(--border);
-            background: #fff;
-            color: #111;
-        }
-
         /* ✅ Perfil modal */
         .modalHeader {
             display: flex;
@@ -671,7 +633,6 @@
                         <button id="tabSend" class="tab active">Enviar</button>
                         <button id="tabSent" class="tab">Enviadas</button>
                         <button id="tabReceived" class="tab">Recibidas</button>
-                        <button id="tabProfile" class="tab">Perfil</button>
                     </div>
                     <div class="muted" id="status"></div>
                 </div>
@@ -762,22 +723,6 @@
                 <p class="note">MVP: varias descargas lanzan varias descargas. Luego lo mejoramos a ZIP.</p>
                 <div id="receivedArea" style="margin-top:12px"></div>
             </div>
-
-            <!-- Perfil (lo dejamos para NO romper nada, pero ya no lo usaremos) -->
-            <div id="viewProfile" class="card hidden">
-                <h3>Perfil</h3>
-                <p><strong>Usuario:</strong> <span id="profileUser"></span></p>
-
-                <h4>Cambiar contraseña</h4>
-                <div class="row">
-                    <input id="profileNewPass" type="password" placeholder="Mín. 8 caracteres" />
-                    <button id="profileChangePassBtn" class="btn secondary">Cambiar</button>
-                </div>
-                <p class="muted" id="profileMsg"></p>
-
-                <div class="hr"></div>
-                <p class="note">Foto de perfil: la añadimos después (requiere storage permanente).</p>
-            </div>
         </div>
     </main>
 
@@ -793,7 +738,7 @@
         </div>
     </div>
 
-    <!-- ✅ NUEVO: Modal Perfil flotante -->
+    <!-- ✅ Modal Perfil flotante -->
     <div id="profileOverlay" class="modalOverlay hidden" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true">
             <div class="modalHeader">

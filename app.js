@@ -10,7 +10,7 @@ const logoutBtn = el("logoutBtn");
 const profileBtn = el("profileBtn");
 const profileAvatar = el("profileAvatar");
 
-// ✅ NUEVO: Perfil modal
+// ✅ Perfil modal
 const profileOverlay = el("profileOverlay");
 const profileClose = el("profileClose");
 const profileUser2 = el("profileUser2");
@@ -41,6 +41,15 @@ function setStatus(msg) { status.textContent = msg || ""; }
 function show(id) { el(id).classList.remove("hidden"); }
 function hide(id) { el(id).classList.add("hidden"); }
 
+function initials(name) {
+    const s = (name || "").trim();
+    if (!s) return "?";
+    const parts = s.split(/[\s._-]+/).filter(Boolean);
+    const a = parts[0]?.[0] || s[0];
+    const b = parts[1]?.[0] || "";
+    return (a + b).toUpperCase();
+}
+
 function setSession(t, u) {
     token = t;
     user = u;
@@ -49,7 +58,7 @@ function setSession(t, u) {
     userLabel.textContent = user ? `@${user.username}` : "";
     logoutBtn.classList.toggle("hidden", !token);
 
-    // Mostrar botón perfil + inicial
+    // Perfil en cabecera
     if (profileBtn) profileBtn.classList.toggle("hidden", !token);
     if (profileAvatar) profileAvatar.textContent = initials(user?.username || "?");
 }
@@ -65,7 +74,7 @@ function clearSession() {
     if (profileBtn) profileBtn.classList.add("hidden");
     if (profileAvatar) profileAvatar.textContent = "?";
 
-    closeProfile(); // ✅ por si estaba abierto
+    closeProfile();
 }
 
 async function api(path, opts = {}) {
@@ -102,16 +111,6 @@ async function setImgWithAuth(imgEl, fileUrl) {
     rememberObjectUrl(objUrl);
 }
 
-// UI helpers
-function initials(name) {
-    const s = (name || "").trim();
-    if (!s) return "?";
-    const parts = s.split(/[\s._-]+/).filter(Boolean);
-    const a = parts[0]?.[0] || s[0];
-    const b = parts[1]?.[0] || "";
-    return (a + b).toUpperCase();
-}
-
 function setTarget(u) {
     targetUsername = u || "";
     el("targetLabel").textContent = targetUsername || "—";
@@ -134,31 +133,26 @@ function toast(text) {
 }
 
 // Views
-function showAuth() {
-    show("authView"); hide("forcePassView"); hide("appView");
-}
-function showForcePass() {
-    hide("authView"); show("forcePassView"); hide("appView");
-}
+function showAuth() { show("authView"); hide("forcePassView"); hide("appView"); }
+function showForcePass() { hide("authView"); show("forcePassView"); hide("appView"); }
 function showApp() {
     hide("authView"); hide("forcePassView"); show("appView");
-    el("profileUser").textContent = user?.username || "";
     loadContacts().catch(() => { });
 }
 
 // Tabs
 function activateTab(tabId, viewId) {
-    ["tabSend", "tabSent", "tabReceived", "tabProfile"].forEach(t => el(t).classList.remove("active"));
-    ["viewSend", "viewSent", "viewReceived", "viewProfile"].forEach(v => hide(v));
+    ["tabSend", "tabSent", "tabReceived"].forEach(t => el(t).classList.remove("active"));
+    ["viewSend", "viewSent", "viewReceived"].forEach(v => hide(v));
     el(tabId).classList.add("active");
     show(viewId);
     if (viewId === "viewSend") loadContacts().catch(() => { });
 }
 
-// ✅ NUEVO: abrir/cerrar perfil modal
+// ✅ Perfil modal
 function openProfile() {
     if (!profileOverlay) return;
-    profileUser2.textContent = user?.username || "";
+    if (profileUser2) profileUser2.textContent = user?.username || "";
     if (profileMsg2) profileMsg2.textContent = "";
     if (profileNewPass2) profileNewPass2.value = "";
     profileOverlay.classList.remove("hidden");
@@ -217,23 +211,18 @@ logoutBtn.addEventListener("click", () => {
     showAuth();
 });
 
-// ✅ Cambiar: avatar abre MODAL (no tab)
-if (profileBtn) {
-    profileBtn.addEventListener("click", () => openProfile());
-}
-
-// ✅ cerrar modal perfil
+// abrir/cerrar perfil
+if (profileBtn) profileBtn.addEventListener("click", openProfile);
 if (profileClose) profileClose.addEventListener("click", closeProfile);
 if (profileOverlay) {
     profileOverlay.classList.add("hidden");
     profileOverlay.setAttribute("aria-hidden", "true");
-
     profileOverlay.addEventListener("click", (e) => {
         if (e.target === profileOverlay) closeProfile();
     });
 }
 
-// ✅ Cambiar contraseña desde modal perfil
+// cambiar contraseña desde modal perfil
 if (profileChangePassBtn2) {
     profileChangePassBtn2.addEventListener("click", async () => {
         if (!profileMsg2) return;
@@ -249,14 +238,14 @@ if (profileChangePassBtn2) {
 }
 
 // --------------------
-// ✅ Modal confirmación eliminar
+// Modal confirmación eliminar
 // --------------------
 const confirmOverlay = el("confirmOverlay");
 const confirmText = el("confirmText");
 const confirmCancel = el("confirmCancel");
 const confirmOk = el("confirmOk");
 
-let pendingDelete = ""; // username
+let pendingDelete = "";
 
 function openConfirmDelete(username) {
     pendingDelete = username;
@@ -287,10 +276,7 @@ confirmOk.addEventListener("click", async () => {
     if (!pendingDelete) return closeConfirm();
     try {
         await api(`/contacts/${encodeURIComponent(pendingDelete)}`, { method: "DELETE" });
-
-        // Si borras el que estaba seleccionado como target, lo deseleccionamos
         if (targetUsername === pendingDelete) setTarget("");
-
         closeConfirm();
         toast("✅ Contacto eliminado");
         await loadContacts();
@@ -321,21 +307,18 @@ async function loadContacts() {
             node.dataset.username = c.username;
 
             node.innerHTML = `
-        <div class="avatar">${initials(c.username)}</div>
-        <div style="min-width:0">
-          <div class="contactName">${c.username}</div>
-          <div class="contactMeta">Reciente</div>
-        </div>
+                <div class="avatar">${initials(c.username)}</div>
+                <div style="min-width:0">
+                  <div class="contactName">${c.username}</div>
+                  <div class="contactMeta">Reciente</div>
+                </div>
 
-        <div class="contactRight">
-          <button class="iconBtn" title="Eliminar contacto" aria-label="Eliminar contacto">🗑️</button>
-        </div>
-      `;
+                <div class="contactRight">
+                  <button class="iconBtn" title="Eliminar contacto" aria-label="Eliminar contacto">🗑️</button>
+                </div>
+            `;
 
-            // click normal: seleccionar destino
             node.addEventListener("click", () => setTarget(c.username));
-
-            // click en papelera: NO seleccionar, solo borrar
             node.querySelector(".iconBtn").addEventListener("click", (e) => {
                 e.stopPropagation();
                 openConfirmDelete(c.username);
@@ -368,15 +351,15 @@ el("searchBtn").addEventListener("click", async () => {
             const node = document.createElement("div");
             node.className = "result";
             node.innerHTML = `
-        <div class="row" style="gap:10px;min-width:0">
-          <div class="avatar">${initials(u.username)}</div>
-          <div style="min-width:0">
-            <div style="font-weight:700">${u.username}</div>
-            <div class="muted">Usuario</div>
-          </div>
-        </div>
-        <button class="btn secondary">Seleccionar</button>
-      `;
+                <div class="row" style="gap:10px;min-width:0">
+                  <div class="avatar">${initials(u.username)}</div>
+                  <div style="min-width:0">
+                    <div style="font-weight:700">${u.username}</div>
+                    <div class="muted">Usuario</div>
+                  </div>
+                </div>
+                <button class="btn secondary">Seleccionar</button>
+            `;
             node.querySelector("button").addEventListener("click", () => {
                 setTarget(u.username);
                 toast(`✅ Destino: ${u.username}`);
@@ -398,9 +381,7 @@ const clearFileBtn = el("clearFileBtn");
 
 let localPreviewUrl = "";
 
-function setFileLabel(file) {
-    dzFile.textContent = file ? `Seleccionado: ${file.name}` : "";
-}
+function setFileLabel(file) { dzFile.textContent = file ? `Seleccionado: ${file.name}` : ""; }
 function setLocalPreview(file) {
     if (localPreviewUrl) { try { URL.revokeObjectURL(localPreviewUrl); } catch { } }
     localPreviewUrl = "";
@@ -472,7 +453,7 @@ el("sendBtn").addEventListener("click", async () => {
         setLocalPreview(null);
         updateSendEnabled();
 
-        await loadContacts(); // refresca recents
+        await loadContacts();
     } catch (e) {
         setStatus(`❌ ${e.message}`);
     }
@@ -497,18 +478,18 @@ async function loadSent() {
             const div = document.createElement("div");
             div.className = "thumb";
             div.innerHTML = `
-        <div class="imgFallback">Cargando miniatura…</div>
-        <img alt="" style="display:none" />
-        <div class="meta">
-          <div><strong>Para:</strong> ${m.to_username}</div>
-          <div class="small">${m.original_name || ""}</div>
-          <div class="small">Expira: ${new Date(m.expires_at).toLocaleString()}</div>
-          <div class="actions">
-            <button class="btn secondary" data-open>Abrir</button>
-            <button class="btn secondary" data-dl>Descargar</button>
-          </div>
-        </div>
-      `;
+                <div class="imgFallback">Cargando miniatura…</div>
+                <img alt="" style="display:none" />
+                <div class="meta">
+                  <div><strong>Para:</strong> ${m.to_username}</div>
+                  <div class="small">${m.original_name || ""}</div>
+                  <div class="small">Expira: ${new Date(m.expires_at).toLocaleString()}</div>
+                  <div class="actions">
+                    <button class="btn secondary" data-open>Abrir</button>
+                    <button class="btn secondary" data-dl>Descargar</button>
+                  </div>
+                </div>
+            `;
 
             const fallback = div.querySelector(".imgFallback");
             const img = div.querySelector("img");
@@ -572,21 +553,21 @@ async function loadReceived() {
                 const div = document.createElement("div");
                 div.className = "thumb";
                 div.innerHTML = `
-          <div class="imgFallback">Cargando miniatura…</div>
-          <img alt="" style="display:none" />
-          <div class="meta">
-            <label class="row" style="gap:8px">
-              <input type="checkbox" data-url="${fileUrl}" data-name="${item.original_name || "foto"}" />
-              <span class="muted">Seleccionar</span>
-            </label>
-            <div class="small">${item.original_name || ""}</div>
-            <div class="small">Expira: ${new Date(item.expires_at).toLocaleString()}</div>
-            <div class="actions">
-              <button class="btn secondary" data-open>Abrir</button>
-              <button class="btn secondary" data-dl>Descargar</button>
-            </div>
-          </div>
-        `;
+                    <div class="imgFallback">Cargando miniatura…</div>
+                    <img alt="" style="display:none" />
+                    <div class="meta">
+                      <label class="row" style="gap:8px">
+                        <input type="checkbox" data-url="${fileUrl}" data-name="${item.original_name || "foto"}" />
+                        <span class="muted">Seleccionar</span>
+                      </label>
+                      <div class="small">${item.original_name || ""}</div>
+                      <div class="small">Expira: ${new Date(item.expires_at).toLocaleString()}</div>
+                      <div class="actions">
+                        <button class="btn secondary" data-open>Abrir</button>
+                        <button class="btn secondary" data-dl>Descargar</button>
+                      </div>
+                    </div>
+                `;
 
                 const fallback = div.querySelector(".imgFallback");
                 const img = div.querySelector("img");
@@ -654,26 +635,10 @@ async function downloadSelected() {
     }
 }
 
-// PROFILE (vista antigua) — la dejo por si la sigues usando desde el tab
-el("profileChangePassBtn").addEventListener("click", async () => {
-    el("profileMsg").textContent = "";
-    try {
-        const newPassword = el("profileNewPass").value;
-        await api("/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) });
-        el("profileMsg").textContent = "✅ Contraseña cambiada";
-    } catch (e) {
-        el("profileMsg").textContent = `❌ ${e.message}`;
-    }
-});
-
 // Tabs actions
 el("tabSend").addEventListener("click", () => activateTab("tabSend", "viewSend"));
 el("tabSent").addEventListener("click", () => { activateTab("tabSent", "viewSent"); loadSent(); });
 el("tabReceived").addEventListener("click", () => { activateTab("tabReceived", "viewReceived"); loadReceived(); });
-
-// ✅ Importante: NO usamos el tab perfil para abrir el perfil nuevo.
-// Lo dejo sin listener para que no cambie nada si lo pulsas (si quieres que abra el modal también, dímelo).
-// el("tabProfile").addEventListener("click", () => activateTab("tabProfile", "viewProfile"));
 
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
