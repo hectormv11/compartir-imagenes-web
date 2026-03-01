@@ -535,6 +535,74 @@
             background: #fff;
             color: #111;
         }
+
+        /* ✅ Profile button in header (duplicado en tu CSS; lo dejo tal cual) */
+        .profileBtn {
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 999px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform .05s ease, background .15s ease;
+            padding: 0;
+        }
+
+        .profileBtn:hover {
+            background: var(--soft);
+        }
+
+        .profileBtn:active {
+            transform: scale(.98);
+        }
+
+        .profileAvatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 12px;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: #111;
+        }
+
+        /* ✅ Perfil modal */
+        .modalHeader {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .modalClose {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .modalClose:hover {
+            background: var(--soft);
+        }
+
+        .modalBody .row {
+            margin-top: 10px;
+        }
     </style>
 </head>
 
@@ -553,7 +621,7 @@
             <div class="rightHeader">
                 <span id="userLabel" class="muted"></span>
 
-                <!-- ✅ Avatar botón (abre Perfil) -->
+                <!-- Avatar -->
                 <button id="profileBtn" class="profileBtn hidden" title="Perfil" aria-label="Perfil">
                     <span id="profileAvatar" class="profileAvatar">?</span>
                 </button>
@@ -695,7 +763,7 @@
                 <div id="receivedArea" style="margin-top:12px"></div>
             </div>
 
-            <!-- Perfil -->
+            <!-- Perfil (lo dejamos para NO romper nada, pero ya no lo usaremos) -->
             <div id="viewProfile" class="card hidden">
                 <h3>Perfil</h3>
                 <p><strong>Usuario:</strong> <span id="profileUser"></span></p>
@@ -721,6 +789,33 @@
             <div class="modalActions">
                 <button id="confirmCancel" class="btn secondary">Cancelar</button>
                 <button id="confirmOk" class="btn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ NUEVO: Modal Perfil flotante -->
+    <div id="profileOverlay" class="modalOverlay hidden" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modalHeader">
+                <div>
+                    <h3 class="modalTitle" style="margin:0">Perfil</h3>
+                    <p class="modalText" style="margin:6px 0 0 0">
+                        Usuario: <strong id="profileUser2"></strong>
+                    </p>
+                </div>
+                <button id="profileClose" class="modalClose" aria-label="Cerrar">✕</button>
+            </div>
+
+            <div class="modalBody">
+                <h4 style="margin:6px 0 0 0">Cambiar contraseña</h4>
+                <div class="row">
+                    <input id="profileNewPass2" type="password" placeholder="Mín. 8 caracteres" />
+                    <button id="profileChangePassBtn2" class="btn secondary">Cambiar</button>
+                </div>
+                <p class="muted" id="profileMsg2"></p>
+
+                <div class="hr"></div>
+                <p class="note">Foto de perfil: la añadimos después (requiere storage permanente).</p>
             </div>
         </div>
     </div>

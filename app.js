@@ -10,6 +10,14 @@ const logoutBtn = el("logoutBtn");
 const profileBtn = el("profileBtn");
 const profileAvatar = el("profileAvatar");
 
+// ✅ NUEVO: Perfil modal
+const profileOverlay = el("profileOverlay");
+const profileClose = el("profileClose");
+const profileUser2 = el("profileUser2");
+const profileNewPass2 = el("profileNewPass2");
+const profileChangePassBtn2 = el("profileChangePassBtn2");
+const profileMsg2 = el("profileMsg2");
+
 const authMsg = el("authMsg");
 const regMsg = el("regMsg");
 const passMsg = el("passMsg");
@@ -56,6 +64,8 @@ function clearSession() {
 
     if (profileBtn) profileBtn.classList.add("hidden");
     if (profileAvatar) profileAvatar.textContent = "?";
+
+    closeProfile(); // ✅ por si estaba abierto
 }
 
 async function api(path, opts = {}) {
@@ -145,6 +155,22 @@ function activateTab(tabId, viewId) {
     if (viewId === "viewSend") loadContacts().catch(() => { });
 }
 
+// ✅ NUEVO: abrir/cerrar perfil modal
+function openProfile() {
+    if (!profileOverlay) return;
+    profileUser2.textContent = user?.username || "";
+    if (profileMsg2) profileMsg2.textContent = "";
+    if (profileNewPass2) profileNewPass2.value = "";
+    profileOverlay.classList.remove("hidden");
+    profileOverlay.setAttribute("aria-hidden", "false");
+}
+
+function closeProfile() {
+    if (!profileOverlay) return;
+    profileOverlay.classList.add("hidden");
+    profileOverlay.setAttribute("aria-hidden", "true");
+}
+
 // AUTH
 el("loginBtn").addEventListener("click", async () => {
     authMsg.textContent = "";
@@ -191,10 +217,34 @@ logoutBtn.addEventListener("click", () => {
     showAuth();
 });
 
+// ✅ Cambiar: avatar abre MODAL (no tab)
 if (profileBtn) {
-    profileBtn.addEventListener("click", () => {
-        // Abre la pestaña Perfil
-        activateTab("tabProfile", "viewProfile");
+    profileBtn.addEventListener("click", () => openProfile());
+}
+
+// ✅ cerrar modal perfil
+if (profileClose) profileClose.addEventListener("click", closeProfile);
+if (profileOverlay) {
+    profileOverlay.classList.add("hidden");
+    profileOverlay.setAttribute("aria-hidden", "true");
+
+    profileOverlay.addEventListener("click", (e) => {
+        if (e.target === profileOverlay) closeProfile();
+    });
+}
+
+// ✅ Cambiar contraseña desde modal perfil
+if (profileChangePassBtn2) {
+    profileChangePassBtn2.addEventListener("click", async () => {
+        if (!profileMsg2) return;
+        profileMsg2.textContent = "";
+        try {
+            const newPassword = profileNewPass2?.value || "";
+            await api("/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) });
+            profileMsg2.textContent = "✅ Contraseña cambiada";
+        } catch (e) {
+            profileMsg2.textContent = `❌ ${e.message}`;
+        }
     });
 }
 
@@ -604,7 +654,7 @@ async function downloadSelected() {
     }
 }
 
-// PROFILE
+// PROFILE (vista antigua) — la dejo por si la sigues usando desde el tab
 el("profileChangePassBtn").addEventListener("click", async () => {
     el("profileMsg").textContent = "";
     try {
@@ -620,10 +670,16 @@ el("profileChangePassBtn").addEventListener("click", async () => {
 el("tabSend").addEventListener("click", () => activateTab("tabSend", "viewSend"));
 el("tabSent").addEventListener("click", () => { activateTab("tabSent", "viewSent"); loadSent(); });
 el("tabReceived").addEventListener("click", () => { activateTab("tabReceived", "viewReceived"); loadReceived(); });
-el("tabProfile").addEventListener("click", () => activateTab("tabProfile", "viewProfile"));
+
+// ✅ Importante: NO usamos el tab perfil para abrir el perfil nuevo.
+// Lo dejo sin listener para que no cambie nada si lo pulsas (si quieres que abra el modal también, dímelo).
+// el("tabProfile").addEventListener("click", () => activateTab("tabProfile", "viewProfile"));
 
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeConfirm();
+    if (e.key === "Escape") {
+        closeConfirm();
+        closeProfile();
+    }
 });
 
 // Init
