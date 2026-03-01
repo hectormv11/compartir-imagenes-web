@@ -7,6 +7,9 @@ const appView = el("appView");
 const userLabel = el("userLabel");
 const logoutBtn = el("logoutBtn");
 
+const profileBtn = el("profileBtn");
+const profileAvatar = el("profileAvatar");
+
 const authMsg = el("authMsg");
 const regMsg = el("regMsg");
 const passMsg = el("passMsg");
@@ -22,8 +25,8 @@ let targetUsername = "";
 let objectUrls = [];
 function rememberObjectUrl(url) { objectUrls.push(url); }
 function clearObjectUrls() {
-  for (const u of objectUrls) { try { URL.revokeObjectURL(u); } catch {} }
-  objectUrls = [];
+    for (const u of objectUrls) { try { URL.revokeObjectURL(u); } catch { } }
+    objectUrls = [];
 }
 
 function setStatus(msg) { status.textContent = msg || ""; }
@@ -31,155 +34,169 @@ function show(id) { el(id).classList.remove("hidden"); }
 function hide(id) { el(id).classList.add("hidden"); }
 
 function setSession(t, u) {
-  token = t;
-  user = u;
-  localStorage.setItem("token", token);
-  localStorage.setItem("user", JSON.stringify(user));
-  userLabel.textContent = user ? `@${user.username}` : "";
-  logoutBtn.classList.toggle("hidden", !token);
+    token = t;
+    user = u;
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    userLabel.textContent = user ? `@${user.username}` : "";
+    logoutBtn.classList.toggle("hidden", !token);
+
+    // Mostrar botón perfil + inicial
+    if (profileBtn) profileBtn.classList.toggle("hidden", !token);
+    if (profileAvatar) profileAvatar.textContent = initials(user?.username || "?");
 }
 
 function clearSession() {
-  token = "";
-  user = null;
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  userLabel.textContent = "";
-  logoutBtn.classList.add("hidden");
+    token = "";
+    user = null;
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    userLabel.textContent = "";
+    logoutBtn.classList.add("hidden");
+
+    if (profileBtn) profileBtn.classList.add("hidden");
+    if (profileAvatar) profileAvatar.textContent = "?";
 }
 
 async function api(path, opts = {}) {
-  const headers = opts.headers ? { ...opts.headers } : {};
-  if (!(opts.body instanceof FormData)) headers["Content-Type"] = headers["Content-Type"] || "application/json";
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+    const headers = opts.headers ? { ...opts.headers } : {};
+    if (!(opts.body instanceof FormData)) headers["Content-Type"] = headers["Content-Type"] || "application/json";
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-  return data;
+    const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    return data;
 }
 
 // Miniaturas protegidas
 async function setImgWithAuth(imgEl, fileUrl) {
-  const u = new URL(fileUrl);
-  u.searchParams.set("_", String(Date.now()));
+    const u = new URL(fileUrl);
+    u.searchParams.set("_", String(Date.now()));
 
-  const res = await fetch(u.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store"
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(u.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store"
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-  const blob = await res.blob();
-  const objUrl = URL.createObjectURL(blob);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
 
-  if (imgEl.dataset.objUrl) { try { URL.revokeObjectURL(imgEl.dataset.objUrl); } catch {} }
+    if (imgEl.dataset.objUrl) { try { URL.revokeObjectURL(imgEl.dataset.objUrl); } catch { } }
 
-  imgEl.src = objUrl;
-  imgEl.dataset.objUrl = objUrl;
-  rememberObjectUrl(objUrl);
+    imgEl.src = objUrl;
+    imgEl.dataset.objUrl = objUrl;
+    rememberObjectUrl(objUrl);
 }
 
 // UI helpers
 function initials(name) {
-  const s = (name || "").trim();
-  if (!s) return "?";
-  const parts = s.split(/[\s._-]+/).filter(Boolean);
-  const a = parts[0]?.[0] || s[0];
-  const b = parts[1]?.[0] || "";
-  return (a + b).toUpperCase();
+    const s = (name || "").trim();
+    if (!s) return "?";
+    const parts = s.split(/[\s._-]+/).filter(Boolean);
+    const a = parts[0]?.[0] || s[0];
+    const b = parts[1]?.[0] || "";
+    return (a + b).toUpperCase();
 }
 
 function setTarget(u) {
-  targetUsername = u || "";
-  el("targetLabel").textContent = targetUsername || "—";
-  el("targetLabel2").textContent = targetUsername || "—";
-  updateSendEnabled();
-  document.querySelectorAll(".contact").forEach(node => {
-    node.classList.toggle("active", node.dataset.username === targetUsername);
-  });
+    targetUsername = u || "";
+    el("targetLabel").textContent = targetUsername || "—";
+    el("targetLabel2").textContent = targetUsername || "—";
+    updateSendEnabled();
+    document.querySelectorAll(".contact").forEach(node => {
+        node.classList.toggle("active", node.dataset.username === targetUsername);
+    });
 }
 
 function updateSendEnabled() {
-  const hasTarget = !!targetUsername;
-  const hasFile = !!el("file").files?.[0];
-  el("sendBtn").disabled = !(hasTarget && hasFile);
+    const hasTarget = !!targetUsername;
+    const hasFile = !!el("file").files?.[0];
+    el("sendBtn").disabled = !(hasTarget && hasFile);
 }
 
 function toast(text) {
-  setStatus(text);
-  setTimeout(() => setStatus(""), 1800);
+    setStatus(text);
+    setTimeout(() => setStatus(""), 1800);
 }
 
 // Views
 function showAuth() {
-  show("authView"); hide("forcePassView"); hide("appView");
+    show("authView"); hide("forcePassView"); hide("appView");
 }
 function showForcePass() {
-  hide("authView"); show("forcePassView"); hide("appView");
+    hide("authView"); show("forcePassView"); hide("appView");
 }
 function showApp() {
-  hide("authView"); hide("forcePassView"); show("appView");
-  el("profileUser").textContent = user?.username || "";
-  loadContacts().catch(() => {});
+    hide("authView"); hide("forcePassView"); show("appView");
+    el("profileUser").textContent = user?.username || "";
+    loadContacts().catch(() => { });
 }
 
 // Tabs
 function activateTab(tabId, viewId) {
-  ["tabSend","tabSent","tabReceived","tabProfile"].forEach(t => el(t).classList.remove("active"));
-  ["viewSend","viewSent","viewReceived","viewProfile"].forEach(v => hide(v));
-  el(tabId).classList.add("active");
-  show(viewId);
-  if (viewId === "viewSend") loadContacts().catch(() => {});
+    ["tabSend", "tabSent", "tabReceived", "tabProfile"].forEach(t => el(t).classList.remove("active"));
+    ["viewSend", "viewSent", "viewReceived", "viewProfile"].forEach(v => hide(v));
+    el(tabId).classList.add("active");
+    show(viewId);
+    if (viewId === "viewSend") loadContacts().catch(() => { });
 }
 
 // AUTH
 el("loginBtn").addEventListener("click", async () => {
-  authMsg.textContent = "";
-  try {
-    const username = el("loginUser").value.trim();
-    const password = el("loginPass").value;
-    const r = await api("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
-    setSession(r.token, r.user);
-    if (r.user.must_change_password) showForcePass();
-    else showApp();
-  } catch (e) {
-    authMsg.textContent = `❌ ${e.message}`;
-  }
+    authMsg.textContent = "";
+    try {
+        const username = el("loginUser").value.trim();
+        const password = el("loginPass").value;
+        const r = await api("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
+        setSession(r.token, r.user);
+        if (r.user.must_change_password) showForcePass();
+        else showApp();
+    } catch (e) {
+        authMsg.textContent = `❌ ${e.message}`;
+    }
 });
 
 el("regBtn").addEventListener("click", async () => {
-  regMsg.textContent = "";
-  try {
-    const username = el("regUser").value.trim();
-    const r = await api("/auth/register", { method: "POST", body: JSON.stringify({ username }) });
-    regMsg.textContent = `✅ Usuario creado. Contraseña temporal: ${r.tempPassword} (cópiala)`;
-  } catch (e) {
-    regMsg.textContent = `❌ ${e.message}`;
-  }
+    regMsg.textContent = "";
+    try {
+        const username = el("regUser").value.trim();
+        const r = await api("/auth/register", { method: "POST", body: JSON.stringify({ username }) });
+        regMsg.textContent = `✅ Usuario creado. Contraseña temporal: ${r.tempPassword} (cópiala)`;
+    } catch (e) {
+        regMsg.textContent = `❌ ${e.message}`;
+    }
 });
 
 el("changePassBtn").addEventListener("click", async () => {
-  passMsg.textContent = "";
-  try {
-    const newPassword = el("newPass").value;
-    await api("/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) });
-    user.must_change_password = false;
-    localStorage.setItem("user", JSON.stringify(user));
-    showApp();
-    toast("✅ Contraseña cambiada");
-  } catch (e) {
-    passMsg.textContent = `❌ ${e.message}`;
-  }
+    passMsg.textContent = "";
+    try {
+        const newPassword = el("newPass").value;
+        await api("/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) });
+        user.must_change_password = false;
+        localStorage.setItem("user", JSON.stringify(user));
+        showApp();
+        toast("✅ Contraseña cambiada");
+    } catch (e) {
+        passMsg.textContent = `❌ ${e.message}`;
+    }
 });
 
 logoutBtn.addEventListener("click", () => {
-  clearObjectUrls();
-  clearSession();
-  showAuth();
+    clearObjectUrls();
+    clearSession();
+    showAuth();
 });
+
+if (profileBtn) {
+    profileBtn.addEventListener("click", () => {
+        // Abre la pestaña Perfil
+        activateTab("tabProfile", "viewProfile");
+    });
+}
 
 // --------------------
 // ✅ Modal confirmación eliminar
@@ -192,68 +209,68 @@ const confirmOk = el("confirmOk");
 let pendingDelete = ""; // username
 
 function openConfirmDelete(username) {
-  pendingDelete = username;
-  confirmText.textContent = `¿Seguro que quieres eliminar a “${username}” de tus contactos?`;
-  confirmOverlay.classList.remove("hidden");
-  confirmOverlay.setAttribute("aria-hidden", "false");
+    pendingDelete = username;
+    confirmText.textContent = `¿Seguro que quieres eliminar a “${username}” de tus contactos?`;
+    confirmOverlay.classList.remove("hidden");
+    confirmOverlay.setAttribute("aria-hidden", "false");
 }
 
 function closeConfirm() {
-  pendingDelete = "";
-  confirmOverlay.classList.add("hidden");
-  confirmOverlay.setAttribute("aria-hidden", "true");
+    pendingDelete = "";
+    confirmOverlay.classList.add("hidden");
+    confirmOverlay.setAttribute("aria-hidden", "true");
 }
 
 if (confirmOverlay) {
-  confirmOverlay.classList.add("hidden");
-  confirmOverlay.setAttribute("aria-hidden", "true");
+    confirmOverlay.classList.add("hidden");
+    confirmOverlay.setAttribute("aria-hidden", "true");
 }
 
 closeConfirm();
 
 confirmCancel.addEventListener("click", closeConfirm);
 confirmOverlay.addEventListener("click", (e) => {
-  if (e.target === confirmOverlay) closeConfirm();
+    if (e.target === confirmOverlay) closeConfirm();
 });
 
 confirmOk.addEventListener("click", async () => {
-  if (!pendingDelete) return closeConfirm();
-  try {
-    await api(`/contacts/${encodeURIComponent(pendingDelete)}`, { method: "DELETE" });
+    if (!pendingDelete) return closeConfirm();
+    try {
+        await api(`/contacts/${encodeURIComponent(pendingDelete)}`, { method: "DELETE" });
 
-    // Si borras el que estaba seleccionado como target, lo deseleccionamos
-    if (targetUsername === pendingDelete) setTarget("");
+        // Si borras el que estaba seleccionado como target, lo deseleccionamos
+        if (targetUsername === pendingDelete) setTarget("");
 
-    closeConfirm();
-    toast("✅ Contacto eliminado");
-    await loadContacts();
-  } catch (e) {
-    closeConfirm();
-    toast(`❌ ${e.message}`);
-  }
+        closeConfirm();
+        toast("✅ Contacto eliminado");
+        await loadContacts();
+    } catch (e) {
+        closeConfirm();
+        toast(`❌ ${e.message}`);
+    }
 });
 
 // CONTACTS
 el("refreshContactsBtn").addEventListener("click", () => loadContacts());
 
 async function loadContacts() {
-  const box = el("contactsList");
-  box.innerHTML = `<div style="padding:12px" class="muted">Cargando…</div>`;
+    const box = el("contactsList");
+    box.innerHTML = `<div style="padding:12px" class="muted">Cargando…</div>`;
 
-  try {
-    const cs = await api("/contacts");
-    if (!cs.length) {
-      box.innerHTML = `<div style="padding:12px" class="muted">Aún no tienes contactos. Usa el buscador.</div>`;
-      return;
-    }
+    try {
+        const cs = await api("/contacts");
+        if (!cs.length) {
+            box.innerHTML = `<div style="padding:12px" class="muted">Aún no tienes contactos. Usa el buscador.</div>`;
+            return;
+        }
 
-    box.innerHTML = "";
-    for (const c of cs) {
-      const node = document.createElement("div");
-      node.className = "contact";
-      node.dataset.username = c.username;
+        box.innerHTML = "";
+        for (const c of cs) {
+            const node = document.createElement("div");
+            node.className = "contact";
+            node.dataset.username = c.username;
 
-      node.innerHTML = `
+            node.innerHTML = `
         <div class="avatar">${initials(c.username)}</div>
         <div style="min-width:0">
           <div class="contactName">${c.username}</div>
@@ -265,42 +282,42 @@ async function loadContacts() {
         </div>
       `;
 
-      // click normal: seleccionar destino
-      node.addEventListener("click", () => setTarget(c.username));
+            // click normal: seleccionar destino
+            node.addEventListener("click", () => setTarget(c.username));
 
-      // click en papelera: NO seleccionar, solo borrar
-      node.querySelector(".iconBtn").addEventListener("click", (e) => {
-        e.stopPropagation();
-        openConfirmDelete(c.username);
-      });
+            // click en papelera: NO seleccionar, solo borrar
+            node.querySelector(".iconBtn").addEventListener("click", (e) => {
+                e.stopPropagation();
+                openConfirmDelete(c.username);
+            });
 
-      box.appendChild(node);
+            box.appendChild(node);
+        }
+
+        if (targetUsername) setTarget(targetUsername);
+    } catch (e) {
+        box.innerHTML = `<div style="padding:12px" class="muted">Error: ${e.message}</div>`;
     }
-
-    if (targetUsername) setTarget(targetUsername);
-  } catch (e) {
-    box.innerHTML = `<div style="padding:12px" class="muted">Error: ${e.message}</div>`;
-  }
 }
 
 // SEARCH
 el("searchBtn").addEventListener("click", async () => {
-  const container = el("searchResults");
-  container.innerHTML = "";
-  const q = el("searchQ").value.trim();
-  if (!q) return;
+    const container = el("searchResults");
+    container.innerHTML = "";
+    const q = el("searchQ").value.trim();
+    if (!q) return;
 
-  try {
-    const rs = await api(`/users/search?q=${encodeURIComponent(q)}`);
-    if (!rs.length) {
-      container.innerHTML = `<div class="muted">Sin resultados.</div>`;
-      return;
-    }
+    try {
+        const rs = await api(`/users/search?q=${encodeURIComponent(q)}`);
+        if (!rs.length) {
+            container.innerHTML = `<div class="muted">Sin resultados.</div>`;
+            return;
+        }
 
-    for (const u of rs) {
-      const node = document.createElement("div");
-      node.className = "result";
-      node.innerHTML = `
+        for (const u of rs) {
+            const node = document.createElement("div");
+            node.className = "result";
+            node.innerHTML = `
         <div class="row" style="gap:10px;min-width:0">
           <div class="avatar">${initials(u.username)}</div>
           <div style="min-width:0">
@@ -310,15 +327,15 @@ el("searchBtn").addEventListener("click", async () => {
         </div>
         <button class="btn secondary">Seleccionar</button>
       `;
-      node.querySelector("button").addEventListener("click", () => {
-        setTarget(u.username);
-        toast(`✅ Destino: ${u.username}`);
-      });
-      container.appendChild(node);
+            node.querySelector("button").addEventListener("click", () => {
+                setTarget(u.username);
+                toast(`✅ Destino: ${u.username}`);
+            });
+            container.appendChild(node);
+        }
+    } catch (e) {
+        container.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
     }
-  } catch (e) {
-    container.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
-  }
 });
 
 // DROPZONE + PREVIEW
@@ -332,20 +349,20 @@ const clearFileBtn = el("clearFileBtn");
 let localPreviewUrl = "";
 
 function setFileLabel(file) {
-  dzFile.textContent = file ? `Seleccionado: ${file.name}` : "";
+    dzFile.textContent = file ? `Seleccionado: ${file.name}` : "";
 }
 function setLocalPreview(file) {
-  if (localPreviewUrl) { try { URL.revokeObjectURL(localPreviewUrl); } catch {} }
-  localPreviewUrl = "";
+    if (localPreviewUrl) { try { URL.revokeObjectURL(localPreviewUrl); } catch { } }
+    localPreviewUrl = "";
 
-  if (!file) {
-    hide("previewWrap");
-    sendPreview.removeAttribute("src");
-    return;
-  }
-  localPreviewUrl = URL.createObjectURL(file);
-  sendPreview.src = localPreviewUrl;
-  show("previewWrap");
+    if (!file) {
+        hide("previewWrap");
+        sendPreview.removeAttribute("src");
+        return;
+    }
+    localPreviewUrl = URL.createObjectURL(file);
+    sendPreview.src = localPreviewUrl;
+    show("previewWrap");
 }
 
 dropzone.addEventListener("click", () => fileInput.click());
@@ -354,82 +371,82 @@ dropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key ===
 dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.style.borderColor = "#999"; });
 dropzone.addEventListener("dragleave", () => { dropzone.style.borderColor = ""; });
 dropzone.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dropzone.style.borderColor = "";
-  const f = e.dataTransfer.files?.[0];
-  if (f) {
-    fileInput.files = e.dataTransfer.files;
-    setFileLabel(f);
-    setLocalPreview(f);
-    updateSendEnabled();
-  }
+    e.preventDefault();
+    dropzone.style.borderColor = "";
+    const f = e.dataTransfer.files?.[0];
+    if (f) {
+        fileInput.files = e.dataTransfer.files;
+        setFileLabel(f);
+        setLocalPreview(f);
+        updateSendEnabled();
+    }
 });
 
 fileInput.addEventListener("change", () => {
-  const f = fileInput.files?.[0];
-  setFileLabel(f);
-  setLocalPreview(f);
-  updateSendEnabled();
+    const f = fileInput.files?.[0];
+    setFileLabel(f);
+    setLocalPreview(f);
+    updateSendEnabled();
 });
 
 clearFileBtn.addEventListener("click", () => {
-  fileInput.value = "";
-  setFileLabel(null);
-  setLocalPreview(null);
-  updateSendEnabled();
-});
-
-// SEND IMAGE
-el("sendBtn").addEventListener("click", async () => {
-  el("sendMsg").textContent = "";
-  el("shareMsg").textContent = "";
-
-  try {
-    const file = fileInput.files?.[0];
-    if (!targetUsername) return (el("sendMsg").textContent = "❌ Elige un destinatario.");
-    if (!file) return (el("sendMsg").textContent = "❌ Elige una imagen.");
-
-    const fd = new FormData();
-    fd.append("toUsername", targetUsername);
-    fd.append("image", file);
-
-    setStatus("Enviando…");
-    const r = await api("/messages/send", { method: "POST", body: fd });
-
-    setStatus("✅ Enviado");
-    el("sendMsg").textContent = `✅ Enviado a ${r.receiver}. Expira: ${new Date(r.expiresAt).toLocaleString()}`;
-    if (r.shareLink) el("shareMsg").textContent = `Link corto (opcional): ${r.shareLink}`;
-
     fileInput.value = "";
     setFileLabel(null);
     setLocalPreview(null);
     updateSendEnabled();
+});
 
-    await loadContacts(); // refresca recents
-  } catch (e) {
-    setStatus(`❌ ${e.message}`);
-  }
+// SEND IMAGE
+el("sendBtn").addEventListener("click", async () => {
+    el("sendMsg").textContent = "";
+    el("shareMsg").textContent = "";
+
+    try {
+        const file = fileInput.files?.[0];
+        if (!targetUsername) return (el("sendMsg").textContent = "❌ Elige un destinatario.");
+        if (!file) return (el("sendMsg").textContent = "❌ Elige una imagen.");
+
+        const fd = new FormData();
+        fd.append("toUsername", targetUsername);
+        fd.append("image", file);
+
+        setStatus("Enviando…");
+        const r = await api("/messages/send", { method: "POST", body: fd });
+
+        setStatus("✅ Enviado");
+        el("sendMsg").textContent = `✅ Enviado a ${r.receiver}. Expira: ${new Date(r.expiresAt).toLocaleString()}`;
+        if (r.shareLink) el("shareMsg").textContent = `Link corto (opcional): ${r.shareLink}`;
+
+        fileInput.value = "";
+        setFileLabel(null);
+        setLocalPreview(null);
+        updateSendEnabled();
+
+        await loadContacts(); // refresca recents
+    } catch (e) {
+        setStatus(`❌ ${e.message}`);
+    }
 });
 
 // SENT
 el("reloadSentBtn").addEventListener("click", loadSent);
 
 async function loadSent() {
-  clearObjectUrls();
-  const grid = el("sentGrid");
-  grid.innerHTML = `<div class="muted">Cargando…</div>`;
+    clearObjectUrls();
+    const grid = el("sentGrid");
+    grid.innerHTML = `<div class="muted">Cargando…</div>`;
 
-  try {
-    const items = await api("/messages/sent");
-    if (!items.length) { grid.innerHTML = `<div class="muted">No hay enviadas.</div>`; return; }
-    grid.innerHTML = "";
+    try {
+        const items = await api("/messages/sent");
+        if (!items.length) { grid.innerHTML = `<div class="muted">No hay enviadas.</div>`; return; }
+        grid.innerHTML = "";
 
-    for (const m of items) {
-      const fileUrl = `${API_BASE}${m.fileUrl}`;
+        for (const m of items) {
+            const fileUrl = `${API_BASE}${m.fileUrl}`;
 
-      const div = document.createElement("div");
-      div.className = "thumb";
-      div.innerHTML = `
+            const div = document.createElement("div");
+            div.className = "thumb";
+            div.innerHTML = `
         <div class="imgFallback">Cargando miniatura…</div>
         <img alt="" style="display:none" />
         <div class="meta">
@@ -443,34 +460,34 @@ async function loadSent() {
         </div>
       `;
 
-      const fallback = div.querySelector(".imgFallback");
-      const img = div.querySelector("img");
+            const fallback = div.querySelector(".imgFallback");
+            const img = div.querySelector("img");
 
-      setImgWithAuth(img, fileUrl)
-        .then(() => { fallback.remove(); img.style.display = "block"; })
-        .catch(() => { fallback.textContent = "No se pudo cargar miniatura"; });
+            setImgWithAuth(img, fileUrl)
+                .then(() => { fallback.remove(); img.style.display = "block"; })
+                .catch(() => { fallback.textContent = "No se pudo cargar miniatura"; });
 
-      div.querySelector("button[data-open]").addEventListener("click", async () => {
-        try {
-          const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          rememberObjectUrl(url);
-          window.open(url, "_blank");
-        } catch (err) { alert(err.message); }
-      });
+            div.querySelector("button[data-open]").addEventListener("click", async () => {
+                try {
+                    const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    rememberObjectUrl(url);
+                    window.open(url, "_blank");
+                } catch (err) { alert(err.message); }
+            });
 
-      div.querySelector("button[data-dl]").addEventListener("click", async () => {
-        try { await downloadOne(fileUrl, m.original_name || "foto"); }
-        catch (err) { alert(err.message); }
-      });
+            div.querySelector("button[data-dl]").addEventListener("click", async () => {
+                try { await downloadOne(fileUrl, m.original_name || "foto"); }
+                catch (err) { alert(err.message); }
+            });
 
-      grid.appendChild(div);
+            grid.appendChild(div);
+        }
+    } catch (e) {
+        grid.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
     }
-  } catch (e) {
-    grid.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
-  }
 }
 
 // RECEIVED
@@ -480,31 +497,31 @@ el("downloadSelectedBtn").addEventListener("click", downloadSelected);
 let selected = new Map();
 
 async function loadReceived() {
-  clearObjectUrls();
-  selected.clear();
+    clearObjectUrls();
+    selected.clear();
 
-  const area = el("receivedArea");
-  area.innerHTML = `<div class="muted">Cargando…</div>`;
+    const area = el("receivedArea");
+    area.innerHTML = `<div class="muted">Cargando…</div>`;
 
-  try {
-    const grouped = await api("/messages/received");
-    const senders = Object.keys(grouped);
-    if (!senders.length) { area.innerHTML = `<div class="muted">No hay recibidas.</div>`; return; }
-    area.innerHTML = "";
+    try {
+        const grouped = await api("/messages/received");
+        const senders = Object.keys(grouped);
+        if (!senders.length) { area.innerHTML = `<div class="muted">No hay recibidas.</div>`; return; }
+        area.innerHTML = "";
 
-    for (const from of senders) {
-      const block = document.createElement("div");
-      block.className = "card";
-      block.style.boxShadow = "none";
-      block.innerHTML = `<h4 style="margin:0 0 10px 0">De: ${from}</h4><div class="grid"></div>`;
-      const grid = block.querySelector(".grid");
+        for (const from of senders) {
+            const block = document.createElement("div");
+            block.className = "card";
+            block.style.boxShadow = "none";
+            block.innerHTML = `<h4 style="margin:0 0 10px 0">De: ${from}</h4><div class="grid"></div>`;
+            const grid = block.querySelector(".grid");
 
-      for (const item of grouped[from]) {
-        const fileUrl = `${API_BASE}${item.fileUrl}`;
+            for (const item of grouped[from]) {
+                const fileUrl = `${API_BASE}${item.fileUrl}`;
 
-        const div = document.createElement("div");
-        div.className = "thumb";
-        div.innerHTML = `
+                const div = document.createElement("div");
+                div.className = "thumb";
+                div.innerHTML = `
           <div class="imgFallback">Cargando miniatura…</div>
           <img alt="" style="display:none" />
           <div class="meta">
@@ -521,101 +538,101 @@ async function loadReceived() {
           </div>
         `;
 
-        const fallback = div.querySelector(".imgFallback");
-        const img = div.querySelector("img");
+                const fallback = div.querySelector(".imgFallback");
+                const img = div.querySelector("img");
 
-        setImgWithAuth(img, fileUrl)
-          .then(() => { fallback.remove(); img.style.display = "block"; })
-          .catch(() => { fallback.textContent = "No se pudo cargar miniatura"; });
+                setImgWithAuth(img, fileUrl)
+                    .then(() => { fallback.remove(); img.style.display = "block"; })
+                    .catch(() => { fallback.textContent = "No se pudo cargar miniatura"; });
 
-        div.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
-          const u = e.target.getAttribute("data-url");
-          const n = e.target.getAttribute("data-name");
-          if (e.target.checked) selected.set(u, n);
-          else selected.delete(u);
-        });
+                div.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
+                    const u = e.target.getAttribute("data-url");
+                    const n = e.target.getAttribute("data-name");
+                    if (e.target.checked) selected.set(u, n);
+                    else selected.delete(u);
+                });
 
-        div.querySelector("button[data-open]").addEventListener("click", async () => {
-          try {
-            const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            rememberObjectUrl(url);
-            window.open(url, "_blank");
-          } catch (err) { alert(err.message); }
-        });
+                div.querySelector("button[data-open]").addEventListener("click", async () => {
+                    try {
+                        const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        rememberObjectUrl(url);
+                        window.open(url, "_blank");
+                    } catch (err) { alert(err.message); }
+                });
 
-        div.querySelector("button[data-dl]").addEventListener("click", async () => {
-          try { await downloadOne(fileUrl, item.original_name || "foto"); }
-          catch (err) { alert(err.message); }
-        });
+                div.querySelector("button[data-dl]").addEventListener("click", async () => {
+                    try { await downloadOne(fileUrl, item.original_name || "foto"); }
+                    catch (err) { alert(err.message); }
+                });
 
-        grid.appendChild(div);
-      }
+                grid.appendChild(div);
+            }
 
-      area.appendChild(block);
+            area.appendChild(block);
+        }
+    } catch (e) {
+        area.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
     }
-  } catch (e) {
-    area.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
-  }
 }
 
 async function downloadOne(fileUrl, filename) {
-  const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const blob = await res.blob();
-  const objUrl = URL.createObjectURL(blob);
-  rememberObjectUrl(objUrl);
+    const res = await fetch(fileUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    rememberObjectUrl(objUrl);
 
-  const a = document.createElement("a");
-  a.href = objUrl;
-  a.download = filename || "foto";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = filename || "foto";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 }
 
 async function downloadSelected() {
-  if (selected.size === 0) return alert("No has seleccionado nada.");
-  setStatus(`Descargando ${selected.size}…`);
-  try {
-    for (const [u, n] of selected.entries()) await downloadOne(u, n);
-    toast("✅ Descargas lanzadas");
-  } catch (e) {
-    setStatus(`❌ ${e.message}`);
-  }
+    if (selected.size === 0) return alert("No has seleccionado nada.");
+    setStatus(`Descargando ${selected.size}…`);
+    try {
+        for (const [u, n] of selected.entries()) await downloadOne(u, n);
+        toast("✅ Descargas lanzadas");
+    } catch (e) {
+        setStatus(`❌ ${e.message}`);
+    }
 }
 
 // PROFILE
 el("profileChangePassBtn").addEventListener("click", async () => {
-  el("profileMsg").textContent = "";
-  try {
-    const newPassword = el("profileNewPass").value;
-    await api("/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) });
-    el("profileMsg").textContent = "✅ Contraseña cambiada";
-  } catch (e) {
-    el("profileMsg").textContent = `❌ ${e.message}`;
-  }
+    el("profileMsg").textContent = "";
+    try {
+        const newPassword = el("profileNewPass").value;
+        await api("/auth/change-password", { method: "POST", body: JSON.stringify({ newPassword }) });
+        el("profileMsg").textContent = "✅ Contraseña cambiada";
+    } catch (e) {
+        el("profileMsg").textContent = `❌ ${e.message}`;
+    }
 });
 
 // Tabs actions
-el("tabSend").addEventListener("click", () => activateTab("tabSend","viewSend"));
-el("tabSent").addEventListener("click", () => { activateTab("tabSent","viewSent"); loadSent(); });
-el("tabReceived").addEventListener("click", () => { activateTab("tabReceived","viewReceived"); loadReceived(); });
-el("tabProfile").addEventListener("click", () => activateTab("tabProfile","viewProfile"));
+el("tabSend").addEventListener("click", () => activateTab("tabSend", "viewSend"));
+el("tabSent").addEventListener("click", () => { activateTab("tabSent", "viewSent"); loadSent(); });
+el("tabReceived").addEventListener("click", () => { activateTab("tabReceived", "viewReceived"); loadReceived(); });
+el("tabProfile").addEventListener("click", () => activateTab("tabProfile", "viewProfile"));
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeConfirm();
+    if (e.key === "Escape") closeConfirm();
 });
 
 // Init
 (function init() {
-  if (token && user) {
-    setSession(token, user);
-    if (user.must_change_password) showForcePass();
-    else showApp();
-  } else {
-    showAuth();
-  }
+    if (token && user) {
+        setSession(token, user);
+        if (user.must_change_password) showForcePass();
+        else showApp();
+    } else {
+        showAuth();
+    }
 })();
