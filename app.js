@@ -26,6 +26,24 @@ const status = el("status");
 let token = localStorage.getItem("token") || "";
 let user = JSON.parse(localStorage.getItem("user") || "null");
 
+// --------------------
+// ✅ Share flow (link corto)
+// --------------------
+let shareToken = sessionStorage.getItem("shareToken") || "";
+
+(function captureShareFromUrl() {
+    const url = new URL(window.location.href);
+    const s = url.searchParams.get("share");
+    if (!s) return;
+
+    shareToken = s;
+    sessionStorage.setItem("shareToken", shareToken);
+
+    // opcional: limpiamos la URL para que no se vea el token
+    url.searchParams.delete("share");
+    window.history.replaceState({}, "", url.toString());
+})();
+
 // Destinatario seleccionado
 let targetUsername = "";
 
@@ -174,7 +192,18 @@ el("loginBtn").addEventListener("click", async () => {
         const r = await api("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
         setSession(r.token, r.user);
         if (r.user.must_change_password) showForcePass();
-        else showApp();
+        else {
+            showApp();
+
+            // ✅ Si venimos desde link corto -> ir directo a Recibidas
+            if (shareToken) {
+                activateTab("tabReceived", "viewReceived");
+                loadReceived();
+                // si quieres que sea de un solo uso:
+                // sessionStorage.removeItem("shareToken");
+                // shareToken = "";
+            }
+        }
     } catch (e) {
         authMsg.textContent = `❌ ${e.message}`;
     }
